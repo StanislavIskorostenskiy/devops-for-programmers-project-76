@@ -1,0 +1,4 @@
+ansible_python_interpreter: /usr/bin/python3
+app_server_ips:
+  - "79.174.95.176"
+  - "79.174.95.228"

@@ -1,0 +1,7 @@
+---
+roles:
+  - name: geerlingguy.pip
+  - name: datadog.datadog
+    src: https://github.com/DataDog/ansible-datadog.git
+
+

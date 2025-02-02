@@ -1,0 +1,4 @@
+[webservers]
+mydevopsstudy.ru ansible_host=79.174.95.176 ansible_user=root
+mydevopsstudy.online ansible_host=79.174.95.228 ansible_user=root
+

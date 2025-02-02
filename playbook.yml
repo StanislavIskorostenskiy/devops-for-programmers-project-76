@@ -1,0 +1,139 @@
+---
+- name: Install and Configure Docker
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Remove conflicting Docker packages
+      apt:
+        name:
+          - docker.io
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - containerd
+        state: absent
+        autoremove: true
+
+    - name: Clean up APT cache
+      command: apt clean
+
+    - name: Autoclean APT cache
+      command: apt autoclean
+
+    - name: Install prerequisites for Docker repository
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Add Docker GPG key
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | tee /etc/apt/keyrings/docker.asc > /dev/null
+        chmod a+r /etc/apt/keyrings/docker.asc
+
+    - name: Add Docker repository
+      shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    - name: Update APT package index
+      apt:
+        update_cache: yes
+
+    - name: Install Docker packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Restart and enable Docker service
+      systemd:
+        name: docker
+        state: restarted
+        enabled: yes
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+
+    - name: Display Docker version
+      debug:
+        msg: "{{ docker_version.stdout }}"
+
+    - name: Ensure Redmine directory exists
+      file:
+        path: /opt/redmine
+        state: directory
+        mode: '0755'
+
+    - name: Copy docker-compose.yml to server
+      copy:
+        src: ./docker-compose.yml
+        dest: /opt/redmine/docker-compose.yml
+        mode: '0644'
+
+    - name: Ensure Redmine config directory exists
+      file:
+        path: /home/ubuntu/redmine
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Create .env file for Redmine
+      template:
+        src: env.j2
+        dest: /opt/redmine/.env
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+
+    - name: Start Redmine with Docker Compose
+      shell: |
+        cd /opt/redmine
+        docker compose up -d
+
+    - name: Check running containers
+      command: docker ps
+      register: running_containers
+
+    - name: Show running containers
+      debug:
+        msg: "{{ running_containers.stdout }}"
+
+- name: Install and Configure Datadog Agent
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Debug Datadog API key
+      debug:
+        var: datadog_api_key
+
+    - name: Install Datadog agent
+      ansible.builtin.include_role:
+        name: datadog.datadog
+      vars:
+        datadog_api_key: "{{ datadog_api_key }}"
+        datadog_site: "datadoghq.eu"  # Или другой, если используется другая локация
+        datadog_logging: true  # Если нужно логирование
+
+    - name: Configure Datadog http_check
+      ansible.builtin.template:
+        src: http_check.conf.j2
+        dest: /etc/datadog-agent/conf.d/http_check.yaml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart Datadog agent
+      ansible.builtin.service:
+        name: datadog-agent
+        state: restarted
+
+

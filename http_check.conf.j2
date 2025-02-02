@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+  {% for ip in app_server_ips %}
+  - url: "http://{{ ip }}:8080"
+    name: "Redmine Health Check for {{ ip }}"
+    timeout: 5
+    retries: 3
+    min_collection_interval: 60
+  {% endfor %}
