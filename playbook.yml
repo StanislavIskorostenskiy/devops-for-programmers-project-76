@@ -13,12 +13,15 @@
           - containerd
         state: absent
         autoremove: true
+      changed_when: false  # Ansible-lint fix
 
     - name: Clean up APT cache
       command: apt clean
+      changed_when: false
 
     - name: Autoclean APT cache
       command: apt autoclean
+      changed_when: false
 
     - name: Install prerequisites for Docker repository
       apt:
@@ -30,13 +33,17 @@
 
     - name: Add Docker GPG key
       shell: |
+        set -o pipefail
         install -m 0755 -d /etc/apt/keyrings
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | tee /etc/apt/keyrings/docker.asc > /dev/null
         chmod a+r /etc/apt/keyrings/docker.asc
+      changed_when: false
 
     - name: Add Docker repository
       shell: |
+        set -o pipefail
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      changed_when: false
 
     - name: Update APT package index
       apt:
@@ -61,6 +68,7 @@
     - name: Verify Docker installation
       command: docker --version
       register: docker_version
+      changed_when: false
 
     - name: Display Docker version
       debug:
@@ -98,10 +106,12 @@
       shell: |
         cd /opt/redmine
         docker compose up -d
+      changed_when: false
 
     - name: Check running containers
       command: docker ps
       register: running_containers
+      changed_when: false
 
     - name: Show running containers
       debug:
@@ -120,8 +130,8 @@
         name: datadog.datadog
       vars:
         datadog_api_key: "{{ datadog_api_key }}"
-        datadog_site: "datadoghq.eu"  # Или другой, если используется другая локация
-        datadog_logging: true  # Если нужно логирование
+        datadog_site: "datadoghq.eu"
+        datadog_logging: true
 
     - name: Configure Datadog http_check
       ansible.builtin.template:
@@ -135,5 +145,4 @@
       ansible.builtin.service:
         name: datadog-agent
         state: restarted
-
 
